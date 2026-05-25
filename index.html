@@ -260,7 +260,9 @@
             const isPos = num > 0;
             
             // เช็คคืนให้แสดงสีเขียว (THEME_GREEN) หรือแดงตามทิศทาง
-            const color = isReturn ? THEME_GREEN : (isPos ? THEME_GREEN : THEME_RED);
+            const color = isReturn
+    ? (isPos ? THEME_RED : THEME_GREEN)   // เช็คคืน: ขึ้นแดง ลงเขียว
+    : (isPos ? THEME_GREEN : THEME_RED); // เช็คปกติ: ขึ้นเขียว ลงแดง
             const showGrowth = !isNaN(num) && Math.abs(num) >= 0.01;
 
             return (
@@ -1332,7 +1334,9 @@
                                                 <Tooltip content={<CustomGraphTooltip />} />
                                                 {filterDate && <ReferenceLine x={viewType==='monthly' ? getDisplayDate(filterDate) : getMonthDisplay(filterDate)} stroke="red" strokeDasharray="3 3" label={{ value: 'Selected', position: 'top', fill: 'red', fontSize: 10 }} />}
                                                 
-                                                <Line type="monotone" dataKey={(d) => !d.isForecast ? d[trendMode] : null} stroke={statusFilter==='R'? THEME_GREEN : THEME_ORANGE} strokeWidth={3} dot={trendData.length > 40 ? false : {r:4, fill: '#fff'}} isAnimationActive={true}>
+                                                <Line type="monotone" dataKey={(d) => !d.isForecast ? d[trendMode] : null} const color = isReturn
+    ? (isPos ? THEME_RED : THEME_GREEN)
+    : (isPos ? THEME_GREEN : THEME_RED);trokeWidth={3} dot={trendData.length > 40 ? false : {r:4, fill: '#fff'}} isAnimationActive={true}>
                                                     {trendData.length <= 40 && <LabelList dataKey="growth" content={(props) => <CustomLineLabel {...props} isReturn={statusFilter === 'R'} trendData={trendData} trendMode={trendMode} />} />}
                                                 </Line>
                                                 
