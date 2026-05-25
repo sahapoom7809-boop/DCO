@@ -112,6 +112,18 @@
             return strCode === '0' || strCode === '00';
         };
 
+        const normalizeCode = (code) => String(code || '').trim().replace(/^0+(?=\d)/, '');
+        const isReturnCode1 = (code) => normalizeCode(code) === '1';
+        const isReturnCode2 = (code) => normalizeCode(code) === '2';
+
+        const getTrendStatusColor = (growthValue, isReturnView) => {
+            const num = parseFloat(growthValue);
+            if (isNaN(num) || Math.abs(num) < 0.01) return '#64748B';
+            return isReturnView
+                ? (num > 0 ? THEME_RED : THEME_GREEN)
+                : (num > 0 ? THEME_GREEN : THEME_RED);
+        };
+
         const formatInputNumber = (val) => {
             if (!val) return ''; let raw = val.replace(/,/g, '').replace(/[^0-9.]/g, '');
             const parts = raw.split('.'); if (parts.length > 2) raw = parts[0] + '.' + parts.slice(1).join('');
@@ -258,12 +270,8 @@
             
             const displayRaw = trendMode === 'amount' ? `฿${fmtAmtM(rawVal)}` : fmtNum(rawVal);
             const isPos = num > 0;
-            
-            // เช็คคืนให้แสดงสีเขียว (THEME_GREEN) หรือแดงตามทิศทาง
-            const color = isReturn
-    ? (isPos ? THEME_RED : THEME_GREEN)   // เช็คคืน: ขึ้นแดง ลงเขียว
-    : (isPos ? THEME_GREEN : THEME_RED); // เช็คปกติ: ขึ้นเขียว ลงแดง
             const showGrowth = !isNaN(num) && Math.abs(num) >= 0.01;
+            const color = getTrendStatusColor(num, isReturn);
 
             return (
                 <g>
@@ -279,9 +287,11 @@
             );
         };
 
-        const CustomHighlightedTick = ({ x, y, payload, minLabel, maxLabel }) => {
+        const CustomHighlightedTick = ({ x, y, payload, minLabel, maxLabel, isReturnView }) => {
             const isMin = payload.value === minLabel, isMax = payload.value === maxLabel;
-            return <g transform={`translate(${x},${y})`}><text x={0} y={0} dy={16} textAnchor="end" fill={isMin ? "#EF4444" : isMax ? "#10B981" : "#64748B"} fontSize={isMin || isMax ? 11 : 10} fontWeight={isMin || isMax ? "900" : "normal"} transform="rotate(-45)">{payload.value}</text></g>;
+            const minColor = isReturnView ? THEME_GREEN : THEME_RED;
+            const maxColor = isReturnView ? THEME_RED : THEME_GREEN;
+            return <g transform={`translate(${x},${y})`}><text x={0} y={0} dy={16} textAnchor="end" fill={isMin ? minColor : isMax ? maxColor : "#64748B"} fontSize={isMin || isMax ? 11 : 10} fontWeight={isMin || isMax ? "900" : "normal"} transform="rotate(-45)">{payload.value}</text></g>;
         };
 
         const StatCard = ({ title, count, amount, growthCount, growthAmount, sparkData, color, icon, onClick, isActive, isFilter }) => {
@@ -300,6 +310,34 @@
                         <div className={`p-2 rounded-xl self-start ${color === 'slate' ? 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-300' : color === 'red' ? 'bg-red-100 text-red-500 dark:bg-red-900/30' : color === 'purple' ? 'bg-purple-100 text-purple-500 dark:bg-purple-900/30' : 'bg-blue-100 text-blue-500 dark:bg-blue-900/30'}`}><Icon name={icon} size={20}/></div>
                     </div>
                     {sparkData && sparkData.length > 0 && <div className="absolute bottom-0 left-0 right-0 h-16 opacity-30 pointer-events-none"><ResponsiveContainer width="100%" height="100%"><LineChart data={sparkData}><Line type="linear" dataKey="val" stroke={color === 'slate' ? '#0F172A' : color === 'red' ? '#EF4444' : color === 'purple' ? '#8B5CF6' : '#3B82F6'} strokeWidth={4} dot={false} isAnimationActive={false} /></LineChart></ResponsiveContainer></div>}
+                </div>
+            );
+        };
+
+        const Code1Then2AlertCard = ({ data }) => {
+            return (
+                <div className="card-base p-4 border-l-[6px] border-red-500 bg-red-50/60 dark:bg-red-900/20 col-span-2 shadow-sm">
+                    <div className="flex items-start justify-between gap-3">
+                        <div>
+                            <div className="text-[10px] text-red-500 dark:text-red-300 uppercase font-black tracking-widest mb-1">Code 1 → Code 2 Risk</div>
+                            <div className="text-xs text-slate-500 dark:text-slate-400 font-bold">บัญชีที่เคยคืนข้อ 1 แล้วมีคืนข้อ 2 ภายหลัง</div>
+                        </div>
+                        <div className="p-2 rounded-xl bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-300"><Icon name="ShieldAlert" size={20}/></div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3 mt-4 text-center">
+                        <div className="bg-white/80 dark:bg-slate-800/70 rounded-xl p-3 border border-red-100 dark:border-red-900/40">
+                            <div className="text-xl font-black text-red-600 dark:text-red-300">{fmtNum(data.accounts)}</div>
+                            <div className="text-[9px] uppercase text-slate-400 font-black tracking-wider">Accounts</div>
+                        </div>
+                        <div className="bg-white/80 dark:bg-slate-800/70 rounded-xl p-3 border border-red-100 dark:border-red-900/40">
+                            <div className="text-xl font-black text-red-600 dark:text-red-300">{fmtNum(data.txns)}</div>
+                            <div className="text-[9px] uppercase text-slate-400 font-black tracking-wider">Code 2 Txns</div>
+                        </div>
+                        <div className="bg-white/80 dark:bg-slate-800/70 rounded-xl p-3 border border-red-100 dark:border-red-900/40">
+                            <div className="text-xl font-black text-red-600 dark:text-red-300">฿{fmtAmtM(data.amount)}</div>
+                            <div className="text-[9px] uppercase text-slate-400 font-black tracking-wider">Amount</div>
+                        </div>
+                    </div>
                 </div>
             );
         };
@@ -802,6 +840,46 @@
 
             const stats = useMemo(() => { let tC=0, tA=0, rC=0, rA=0, cmC=0, cmA=0, nmC=0, nmA=0; globalFilteredData.forEach(i => { tC++; tA += i.amount; if (i.status === 'R') { rC++; rA += i.amount; } if (isCashierAccount(i.accountNo)) { if (String(i.chequeNo).startsWith('8')) { cmC++; cmA += i.amount; } else { nmC++; nmA += i.amount; } } }); return { tC, tA, rC, rA, cmC, cmA, nmC, nmA }; }, [globalFilteredData]);
             
+            const code1Then2Stats = useMemo(() => {
+                const grouped = {};
+                baseContextData.forEach(i => {
+                    if (filterDate && i.date !== filterDate) return;
+                    if (selectedAccount && i.accountNo !== selectedAccount) return;
+                    if (filterBusinessType !== 'ALL' && (accountMap[i.accountNo]?.businessType || 'Unclassified') !== filterBusinessType) return;
+                    if (isCashierFilter) {
+                        if (!isCashierAccount(i.accountNo)) return;
+                        const isCM = String(i.chequeNo).startsWith('8');
+                        if (cashierMode === 'CM' && !isCM) return;
+                        if (cashierMode === 'NORMAL' && isCM) return;
+                    }
+                    if (chequeSearch && !String(i.chequeNo).includes(chequeSearch)) return;
+                    if (!isReturnCode1(i.code) && !isReturnCode2(i.code)) return;
+                    const acc = cleanAcc(i.accountNo) || i.accountNo;
+                    if (!grouped[acc]) grouped[acc] = [];
+                    grouped[acc].push(i);
+                });
+
+                let accounts = 0, txns = 0, amount = 0;
+                const rows = [];
+                Object.entries(grouped).forEach(([acc, list]) => {
+                    let seenCode1 = false, accTxns = 0, accAmount = 0;
+                    [...list].sort((a, b) => String(a.date).localeCompare(String(b.date))).forEach(txn => {
+                        if (isReturnCode1(txn.code)) seenCode1 = true;
+                        else if (seenCode1 && isReturnCode2(txn.code)) {
+                            accTxns++;
+                            accAmount += txn.amount;
+                        }
+                    });
+                    if (accTxns > 0) {
+                        accounts++;
+                        txns += accTxns;
+                        amount += accAmount;
+                        rows.push({ acc, txns: accTxns, amount: accAmount });
+                    }
+                });
+                return { accounts, txns, amount, rows: rows.sort((a,b) => b.amount - a.amount) };
+            }, [baseContextData, filterDate, selectedAccount, filterBusinessType, accountMap, isCashierFilter, cashierMode, chequeSearch]);
+            
             const prevStats = useMemo(() => { if (!sheetsData.length) return null; let pData = [], hasPrev = false; const applyFilters = (data) => { const rawMin = minAmt ? parseFloat(minAmt.replace(/,/g, '')) : -Infinity, rawMax = maxAmt ? parseFloat(maxAmt.replace(/,/g, '')) : Infinity; return data.filter(i => { if (i.amount < rawMin || i.amount > rawMax || (selectedAccount && i.accountNo !== selectedAccount) || (selectedCodes.length > 0 && !selectedCodes.includes(i.code)) || (filterBusinessType !== 'ALL' && (accountMap[i.accountNo]?.businessType || 'Unclassified') !== filterBusinessType)) return false; if (isCashierFilter) { if (!isCashierAccount(i.accountNo) || (cashierMode === 'CM' && !String(i.chequeNo).startsWith('8')) || (cashierMode === 'NORMAL' && String(i.chequeNo).startsWith('8'))) return false; } return true; }); }; if (filterDate) { const allDates = Array.from(new Set(sheetsData.flatMap(s => s.data?.map(i => i.date) || []))).sort(); const currIdx = allDates.indexOf(filterDate); if (currIdx > 0) { pData = sheetsData.flatMap(s => s.data || []).filter(i => i.date === allDates[currIdx - 1]); hasPrev = true; } } else { const currentIdx = sheetsData.findIndex(s => s.name === selectedSheetNames[0]); if (viewType === 'quarterly') { if (currentIdx >= 3) { pData = sheetsData.slice(currentIdx - 3, currentIdx).flatMap(s => s.data || []); hasPrev = pData.length > 0; } } else if (currentIdx > 0) { pData = sheetsData[currentIdx - 1].data || []; hasPrev = true; } } if (!hasPrev || pData.length === 0) return null; const fPData = applyFilters(pData); let pTC = fPData.length, pTA = fPData.reduce((s, i) => s + i.amount, 0), pRC=0, pRA=0, pCMC=0, pCMA=0, pNMC=0, pNMA=0; fPData.forEach(i => { if (i.status === 'R') { pRC++; pRA += i.amount; } if (isCashierAccount(i.accountNo)) { if (String(i.chequeNo).startsWith('8')) { pCMC++; pCMA += i.amount; } else { pNMC++; pNMA += i.amount; } } }); const cG = (c, p) => p > 0 ? ((c - p) / p * 100) : 0; return { tcG: cG(stats.tC, pTC), taG: cG(stats.tA, pTA), rcG: cG(stats.rC, pRC), raG: cG(stats.rA, pRA), cmcG: cG(stats.cmC, pCMC), cmaG: cG(stats.cmA, pCMA), nmcG: cG(stats.nmC, pNMC), nmaG: cG(stats.nmA, pNMA), valid: true }; }, [sheetsData, selectedSheetNames, stats, selectedAccount, cashierMode, filterDate, viewType, minAmt, maxAmt, selectedCodes, filterBusinessType, isCashierFilter, accountMap]);
 
             const closedStatsGlobal = useMemo(() => {
@@ -836,10 +914,11 @@
                 }
                 
                 if(stats.rC > 0 && stats.cmC > 0) text += `Cashier accounts (CM) show ${fmtNum(stats.cmC)} returns. `;
+                if(code1Then2Stats.accounts > 0) text += `Code 1 → 2 risk: ${fmtNum(code1Then2Stats.accounts)} accounts, ${fmtNum(code1Then2Stats.txns)} Code 2 transactions, value ฿${fmtAmtM(code1Then2Stats.amount)}. `;
                 if(closedStatsGlobal.txns > 0) text += `Critical alert: Found ${closedStatsGlobal.txns} transactions from ${closedStatsGlobal.accs} closed accounts.`;
                 
                 return text;
-            }, [stats, filterBusinessType, closedStatsGlobal, globalFilteredData, accountMap]);
+            }, [stats, filterBusinessType, closedStatsGlobal, globalFilteredData, accountMap, code1Then2Stats]);
 
             const sectorData = useMemo(() => {
                 const map = {};
@@ -1279,6 +1358,7 @@
                                     <StatCard title="Return Volume" count={stats.rC} amount={stats.rA} growthCount={prevStats?.rcG} growthAmount={prevStats?.raG} sparkData={sparklineData.return} color="red" icon="AlertTriangle" onClick={() => { startTransition(() => { if(statusFilter==='R') setStatusFilter('ALL'); else { setStatusFilter('R'); setIsCashierFilter(false); setLeftPanelTab('reasons'); } }); }} isActive={statusFilter === 'R'} />
                                     <StatCard title="Cashier (CM)" count={stats.cmC} amount={stats.cmA} growthCount={prevStats?.cmcG} growthAmount={prevStats?.cmaG} sparkData={sparklineData.cm} color="purple" icon="Briefcase" onClick={() => { startTransition(() => { if (isCashierFilter && cashierMode === 'CM') { setIsCashierFilter(false); setCashierMode('ALL'); } else { setIsCashierFilter(true); setCashierMode('CM'); setStatusFilter('ALL'); } }); }} isActive={isCashierFilter && cashierMode === 'CM'} />
                                     <StatCard title="Cashier (Normal)" count={stats.nmC} amount={stats.nmA} growthCount={prevStats?.nmcG} growthAmount={prevStats?.nmaG} sparkData={sparklineData.normal} color="blue" icon="Briefcase" onClick={() => { startTransition(() => { if (isCashierFilter && cashierMode === 'NORMAL') { setIsCashierFilter(false); setCashierMode('ALL'); } else { setIsCashierFilter(true); setCashierMode('NORMAL'); setStatusFilter('ALL'); } }); }} isActive={isCashierFilter && cashierMode === 'NORMAL'} />
+                                    <Code1Then2AlertCard data={code1Then2Stats} />
                                 </div>
                                 
                                 <div className="card-base p-6 lg:w-1/2 flex flex-col justify-center h-full">
@@ -1329,14 +1409,12 @@
                                         {trendChartMode === 'trend' ? (
                                             <LineChart data={trendData} margin={{ top: 50, right: 60, left: 20, bottom: 10 }}>
                                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                                <XAxis dataKey="label" tick={<CustomHighlightedTick minLabel={trendStats.minLabel} maxLabel={trendStats.maxLabel} />} interval="preserveStartEnd" height={60} />
+                                                <XAxis dataKey="label" tick={<CustomHighlightedTick minLabel={trendStats.minLabel} maxLabel={trendStats.maxLabel} isReturnView={statusFilter === 'R'} />} interval="preserveStartEnd" height={60} />
                                                 <YAxis tick={{fontSize:10, fill:'#94a3b8'}} tickFormatter={(v)=>trendMode==='amount'?fmtAmtM(v):fmtNum(v)} padding={{ top: 40 }} />
                                                 <Tooltip content={<CustomGraphTooltip />} />
                                                 {filterDate && <ReferenceLine x={viewType==='monthly' ? getDisplayDate(filterDate) : getMonthDisplay(filterDate)} stroke="red" strokeDasharray="3 3" label={{ value: 'Selected', position: 'top', fill: 'red', fontSize: 10 }} />}
                                                 
-                                                <Line type="monotone" dataKey={(d) => !d.isForecast ? d[trendMode] : null} const color = isReturn
-    ? (isPos ? THEME_RED : THEME_GREEN)
-    : (isPos ? THEME_GREEN : THEME_RED);trokeWidth={3} dot={trendData.length > 40 ? false : {r:4, fill: '#fff'}} isAnimationActive={true}>
+                                                <Line type="monotone" dataKey={(d) => !d.isForecast ? d[trendMode] : null} stroke={statusFilter==='R' ? THEME_RED : THEME_GREEN} strokeWidth={3} dot={trendData.length > 40 ? false : {r:4, fill: '#fff'}} isAnimationActive={true}>
                                                     {trendData.length <= 40 && <LabelList dataKey="growth" content={(props) => <CustomLineLabel {...props} isReturn={statusFilter === 'R'} trendData={trendData} trendMode={trendMode} />} />}
                                                 </Line>
                                                 
